@@ -1,0 +1,5 @@
+asynciolimiter==1.2.0
+litellm==1.78.2
+numpy==2.3.4
+python-dotenv==1.1.1
+scipy==1.16.3

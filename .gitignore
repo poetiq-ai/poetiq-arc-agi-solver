@@ -1,0 +1,5 @@
+*.pyc
+.env
+.DS_Store
+submissions/
+results/
