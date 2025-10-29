@@ -13,8 +13,8 @@ CONFIG: ExpertConfig = {
   'max_total_time': None, # per problem per solver
   'per_iteration_retries': 1,
   # Solver parameters
-  'num_experts': 15,
-  'max_iterations': 2,
+  'num_experts': 14,
+  'max_iterations': 3,
   'max_solutions': 2,
   'selection_probability': 1.0,
   'seed': 0,
