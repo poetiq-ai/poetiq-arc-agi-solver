@@ -1,67 +1,45 @@
 import asyncio
-import glob
 import json
 import os
 import resource
 import time
 import traceback
 from datetime import datetime
-from pathlib import Path
 from typing import Optional
 
-import numpy as np
 from dotenv import load_dotenv
 
 from arc_agi.config import CONFIG
-from arc_agi.io import (get_all_scoring, write_top2_submission,
-                        write_top_k_submission)
-from arc_agi.official_scorer import ARCScorer
+from arc_agi.io import build_kaggle_two_attempts
+from arc_agi.scoring import score_task
 from arc_agi.solve import solve
 
 load_dotenv()
 
-# "v1" or "v2"
-DATASET = "v1"
-# split: "training" or "evaluation"
-SPLIT = "evaluation"
-# number of problems (None = all)
-NUM_PROBLEMS = None
-# select particular problems
-SELECTED_PROBLEMS = [
-    # 'b7999b51',
-    # 'd931c21c'
-]
-# turn on DEBUG mode
-DEBUG = True
 
 # time the run started, so multiple runs don't collide
 TIMESTAMP = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
 
-# path to data files
-DATA_ROOT = os.path.join(os.path.dirname(__file__), "data", DATASET, SPLIT)
-# where to write predictions
-SUBMISSIONS_DIR = os.path.join(os.path.dirname(__file__), "submissions", DATASET, SPLIT, f"run_{TIMESTAMP}")
-# where official scorer will write results
-RESULTS_DIR = os.path.join(os.path.dirname(__file__), "results", DATASET, SPLIT, f"run_{TIMESTAMP}")
+# challenge input file
+DATA_CHALLENGES = os.path.join(os.path.dirname(__file__), "data", "arc-prize-2024", "arc-agi_evaluation_challenges.json")
+# optional challenge solution file
+DATA_SOLUTIONS = os.path.join(os.path.dirname(__file__), "data", "arc-prize-2024", "arc-agi_evaluation_solutions.json")
+# where to write outputs
+OUTPUT_DIR = os.path.join(os.path.dirname(__file__), "output")
+OUTPUT = os.path.join(OUTPUT_DIR, f"submission_{TIMESTAMP}.json")
 
-arc_scorer = ARCScorer(
-    task_dir=DATA_ROOT,
-    submission_dir=SUBMISSIONS_DIR,
-    print_logs=False,
-    results_dir=RESULTS_DIR,
-)
+# number of problems (None = all)
+NUM_PROBLEMS = 10
+# select particular problems
+SELECTED_PROBLEMS = [] # e.g. ['b7999b51']
 
 
-async def eval_file(path: str) -> tuple[str, float, Optional[str], float, list]:
+async def _eval_task_data(task_id: str, task: dict) -> tuple[str, Optional[list[dict]], Optional[str], float]:
     """
-    Returns: (name, score, error, elapsed_time)
+    Returns: (task_id, kaggle_preds | None on error, error, elapsed_seconds)
     """
-    task_id = os.path.splitext(os.path.basename(path))[0]
-    start_time = time.time()
+    start = time.time()
     try:
-        with open(path, "r", encoding="utf-8") as f:
-            task = json.load(f)
-
         train = task.get("train", [])
         test = task.get("test", [])
         train_in = [ex["input"] for ex in train]
@@ -69,33 +47,14 @@ async def eval_file(path: str) -> tuple[str, float, Optional[str], float, list]:
         test_in = [ex["input"] for ex in test]
 
         results = await solve(train_in, train_out, test_in, problem_id=task_id)
+        kaggle_preds = build_kaggle_two_attempts(results, test_in)
 
-        if DEBUG:
-            submission_path = write_top_k_submission(
-                task_id=task_id, results=results, submission_dir=SUBMISSIONS_DIR, expected_pairs=len(test_in), max_k=CONFIG["num_experts"]
-            )
-            all_scores = [res.score for res in get_all_scoring(arc_scorer, task_id, Path(submission_path), max_k=CONFIG["num_experts"])]
-            score = max(all_scores[:2]) if all_scores else 0.0
-        else:
-            submission_path = write_top2_submission(
-                task_id=task_id, results=results, submission_dir=SUBMISSIONS_DIR, expected_pairs=len(test_in)
-            )
-            all_scores = []
-            score = arc_scorer.score_task_from_file(task_id, Path(submission_path)).score
-
-        elapsed_time = time.time() - start_time
-        return task_id, score, None, elapsed_time, all_scores
-    except Exception as e:
-        print(f"File eval failed due to exception: {task_id}")
-        print(str(e))
-        elapsed_time = time.time() - start_time
-        return task_id, 0, traceback.format_exc(), elapsed_time, []
+        return task_id, kaggle_preds, None, time.time() - start
+    except Exception:
+        return task_id, None, traceback.format_exc(), time.time() - start
 
 
 async def main():
-    start_time = time.time()
-    files = sorted(glob.glob(os.path.join(DATA_ROOT, "*.json")))
-
     # Ensure we don't run out of file handles
     # Get current soft and hard limits
     soft, hard = resource.getrlimit(resource.RLIMIT_NOFILE)
@@ -103,75 +62,98 @@ async def main():
     new_soft = 65536
     resource.setrlimit(resource.RLIMIT_NOFILE, (new_soft, hard))
 
-    if SELECTED_PROBLEMS:
-        files = [f for f in files if Path(f).stem in SELECTED_PROBLEMS]
+    os.makedirs(os.path.dirname(OUTPUT), exist_ok=True)
 
-    if NUM_PROBLEMS is not None:
-        files = files[:NUM_PROBLEMS]
-
-    print("Writing config.json to submission directory...")
-    os.makedirs(SUBMISSIONS_DIR, exist_ok=True)
-    # All-caps filename prevents the arcagi official scorer from trying to treat it like
-    # a submission, without requiring changing their code.
-    with open(os.path.join(SUBMISSIONS_DIR, "CONFIG.JSON"), "w", encoding="utf-8") as f:
+    print("Writing config.json to output directory...")
+    with open(os.path.join(OUTPUT_DIR, "config.json"), "w", encoding="utf-8") as f:
         json.dump(CONFIG, f, indent=4)
 
-    print(f"Running {len(files)} problems from {DATASET}/{SPLIT} split...")
+    # Load challenges
+    with open(DATA_CHALLENGES, "r", encoding="utf-8") as f:
+        challenges_blob: dict[str, dict] = json.load(f)
 
+    # Load solutions if present; disable scoring if missing/unreadable
+    solutions_blob: Optional[dict[str, list]] = None
+    if DATA_SOLUTIONS and os.path.exists(DATA_SOLUTIONS):
+        try:
+            with open(DATA_SOLUTIONS, "r", encoding="utf-8") as f:
+                solutions_blob = json.load(f)
+        except Exception as e:
+            print(f"WARNING: Could not load solutions file '{DATA_SOLUTIONS}': {e}\nScoring will be disabled.")
+
+    items = list(challenges_blob.items())
+    if SELECTED_PROBLEMS:
+        sel = set(SELECTED_PROBLEMS)
+        items = [it for it in items if it[0] in sel]
+    if NUM_PROBLEMS is not None:
+        items = items[:NUM_PROBLEMS]
+
+
+    print(f"Running {len(items)} problems from {DATA_CHALLENGES}...")
+    print("Scoring:", "enabled" if solutions_blob is not None else "disabled (no solutions)")
+
+    start = time.time()
+
+    submission: dict[str, list[dict]] = {}
+
+    # running scores only if solutions available
+    per_task_scores: dict[str, float] = {}
     total = 0
-    correct = 0
-    incorrect = 0
-    all_scores = []
+    correct = 0.0
+    incorrect = 0.0
 
-    tasks = [asyncio.create_task(eval_file(p)) for p in files]
+    tasks = [asyncio.create_task(_eval_task_data(task_id, task)) for task_id, task in items]
+
     for coro in asyncio.as_completed(tasks):
-        task_id, score, err, elapsed, scores = await coro
-        all_scores.append(scores)
-        total += 1
-        if err is not None:
-            incorrect += 1
-            print(
-                f"! {task_id} (error in {round(elapsed)}s) [{correct}/{total}]\n{err}"
-            )
+        task_id, preds, err, elapsed = await coro
+
+        if err is not None or preds is None:
+            print(f"! {task_id} (error in {round(elapsed)}s)\n{err}")
+            submission[task_id] = []
         else:
-            correct += score
-            incorrect += 1 - score
+            submission[task_id] = preds
 
-            if score == 1.0:
-                print(f"✓ {task_id} ({round(elapsed)}s) [{correct}/{total}] scores: {scores}")
+            # running scores if solutions available
+            if solutions_blob is not None and task_id in solutions_blob:
+                gt_outputs = solutions_blob[task_id]
+                task_score = score_task(preds, gt_outputs)
+                per_task_scores[task_id] = task_score
+                total += 1
+                correct += task_score
+                incorrect += 1 - task_score
+                mark = "✓" if task_score == 1.0 else "✗"
+                print(f"{mark} {task_id} ({round(elapsed)}s) [{correct}/{total}]")
             else:
-                print(f"✗ {task_id} ({round(elapsed)}s) [{correct}/{total}] scores: {scores}")
+                print(f"· {task_id} ({round(elapsed)}s)")
 
-    acc = (correct / total) if total else 0.0
-    total_time = time.time() - start_time
+        # write cumulative Kaggle output after each task
+        try:
+            with open(OUTPUT, "w", encoding="utf-8") as f:
+                json.dump(submission, f)
+        except Exception as e:
+            print(f"WARNING: Failed to write partial output to {OUTPUT}: {e}")
 
-    if DEBUG:
-        print(f"\nAll Scores:\n{all_scores}\n")
+    total_time = time.time() - start
 
-        max_num_scores = max([len(scores) for scores in all_scores])
-        scores = np.zeros((len(all_scores), max_num_scores))
-        for i, scores_list in enumerate(all_scores):
-            scores[i, :len(scores_list)] = np.array(scores_list)
-
-        # Compute top-K scores
-        kshot_scores = [float(np.max(scores[:, :i + 1], axis=1).mean()) * 100.0 for i in range(scores.shape[-1])]
-        print(f"\nK-shot Scores:\n{kshot_scores}\n")
-
-    print("=== Summary ===")
-    print(f"Split: {SPLIT}")
-    print(f"Problems: {total}")
-    print(f"Correct: {correct}")
-    print(f"Incorrect: {incorrect}")
-    print(f"Accuracy: {acc * 100:.3f}")
+    print("\n=== Summary ===")
+    print(f"Data file: {DATA_CHALLENGES}")
+    print(f"Problems: {len(items)}")
+    if solutions_blob is not None and per_task_scores:
+        acc = correct / total
+        print(f"Correct: {correct}")
+        print(f"Incorrect: {incorrect}")
+        print(f"Accuracy: {acc * 100:.3f}")
+    else:
+        print("Scoring: disabled or no tasks matched in solutions.")
     print(f"Total time: {round(total_time)}s")
 
-    print("\n=== Official Scoring ===", end='')
-    _total_score, _total_tasks = arc_scorer.score_submission()
-
-    if DEBUG:
-        print("\nWARNING: Official scoring in DEBUG mode reports final k-shot result, rather than the 2-shot result."
-              "\nSee second result in 'K-shot Scores' above for accurate official scoring.")
-
+    # final write just in case
+    try:
+        with open(OUTPUT, "w", encoding="utf-8") as f:
+            json.dump(submission, f)
+        print(f"\nWrote Kaggle submission to: {OUTPUT}")
+    except Exception as e:
+        print(f"ERROR: Final write to {OUTPUT} failed: {e}")
 
 if __name__ == "__main__":
     asyncio.run(main())
