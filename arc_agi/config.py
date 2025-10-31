@@ -6,16 +6,16 @@ CONFIG: ExpertConfig = {
   'solver_prompt': SOLVER_PROMPT,
   'feedback_prompt': FEEDBACK_PROMPT,
   # LLM parameters
-  'llm_id': 'xai/grok-4-fast',
+  'llm_id': 'openai/gpt-5',
   'solver_temperature': 1.0,
-  'request_timeout': 30 * 60, # in seconds
-  'max_total_timeouts': 5, # per problem per solver
+  'request_timeout': 15 * 60, # in seconds
+  'max_total_timeouts': 15, # per problem per solver
   'max_total_time': None, # per problem per solver
-  'per_iteration_retries': 1,
+  'per_iteration_retries': 5,
   # Solver parameters
-  'num_experts': 14,
-  'max_iterations': 3,
-  'max_solutions': 2,
+  'num_experts': 2,
+  'max_iterations': 10,
+  'max_solutions': 5,
   'selection_probability': 1.0,
   'seed': 0,
   'shuffle_examples': True,
