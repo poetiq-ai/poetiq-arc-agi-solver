@@ -1,9 +1,9 @@
-from arc_agi.prompts import FEEDBACK_PROMPT, SOLVER_PROMPT
+from arc_agi.prompts import FEEDBACK_PROMPT, SOLVER_PROMPT_1, SOLVER_PROMPT_2, SOLVER_PROMPT_3
 from arc_agi.types import ExpertConfig
 
 CONFIG: ExpertConfig = {
   # Prompts
-  'solver_prompt': SOLVER_PROMPT,
+  'solver_prompt': SOLVER_PROMPT_1,
   'feedback_prompt': FEEDBACK_PROMPT,
   # LLM parameters
   'llm_id': 'openai/gpt-5',
@@ -11,9 +11,9 @@ CONFIG: ExpertConfig = {
   'request_timeout': 20 * 60, # in seconds
   'max_total_timeouts': 15, # per problem per solver
   'max_total_time': None, # per problem per solver
-  'per_iteration_retries': 5,
+  'per_iteration_retries': 2,
   # Solver parameters
-  'num_experts': 2,
+  'num_experts': 1,
   'max_iterations': 10,
   'max_solutions': 5,
   'selection_probability': 1.0,
