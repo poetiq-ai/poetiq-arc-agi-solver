@@ -8,7 +8,7 @@ CONFIG: ExpertConfig = {
   # LLM parameters
   'llm_id': 'openai/gpt-5',
   'solver_temperature': 1.0,
-  'request_timeout': 15 * 60, # in seconds
+  'request_timeout': 20 * 60, # in seconds
   'max_total_timeouts': 15, # per problem per solver
   'max_total_time': None, # per problem per solver
   'per_iteration_retries': 5,
