@@ -29,7 +29,7 @@ OUTPUT_DIR = os.path.join(os.path.dirname(__file__), "output")
 OUTPUT = os.path.join(OUTPUT_DIR, f"submission_{TIMESTAMP}.json")
 
 # number of problems (None = all)
-NUM_PROBLEMS = 10
+NUM_PROBLEMS = None
 # select particular problems
 SELECTED_PROBLEMS = [] # e.g. ['b7999b51']
 
