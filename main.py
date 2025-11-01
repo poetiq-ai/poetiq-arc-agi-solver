@@ -64,8 +64,8 @@ async def main():
 
     os.makedirs(os.path.dirname(OUTPUT), exist_ok=True)
 
-    print("Writing config.json to output directory...")
-    with open(os.path.join(OUTPUT_DIR, "config.json"), "w", encoding="utf-8") as f:
+    print(f"Writing config_{TIMESTAMP}.json to output directory...")
+    with open(os.path.join(OUTPUT_DIR, f"config_{TIMESTAMP}.json"), "w", encoding="utf-8") as f:
         json.dump(CONFIG, f, indent=4)
 
     # Load challenges
