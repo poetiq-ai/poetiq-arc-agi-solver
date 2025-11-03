@@ -54,4 +54,4 @@ CONFIG_LIST: list[ExpertConfig] = [
     'iters_tiebreak': False,
     'low_to_high_iters': False,
   },
-]
+] * 4
