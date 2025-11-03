@@ -9,7 +9,7 @@ from typing import Optional
 
 from dotenv import load_dotenv
 
-from arc_agi.config import CONFIG
+from arc_agi.config import CONFIG_LIST
 from arc_agi.io import build_kaggle_two_attempts
 from arc_agi.scoring import score_task
 from arc_agi.solve import solve
@@ -66,7 +66,7 @@ async def main():
 
     print(f"Writing config_{TIMESTAMP}.json to output directory...")
     with open(os.path.join(OUTPUT_DIR, f"config_{TIMESTAMP}.json"), "w", encoding="utf-8") as f:
-        json.dump(CONFIG, f, indent=4)
+        json.dump(CONFIG_LIST, f, indent=4)
 
     # Load challenges
     with open(DATA_CHALLENGES, "r", encoding="utf-8") as f:

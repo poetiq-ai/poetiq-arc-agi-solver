@@ -1,4 +1,4 @@
-from arc_agi.config import CONFIG
+from arc_agi.config import CONFIG_LIST
 from arc_agi.solve_parallel_coding import solve_parallel_coding
 from arc_agi.types import ARCAGIResult
 
@@ -13,7 +13,7 @@ async def solve(
         train_in=train_in,
         train_out=train_out,
         test_in=test_in,
-        expert_configs=[CONFIG.copy() for _ in range(CONFIG["num_experts"])],
+        expert_configs=[cfg.copy() for cfg in CONFIG_LIST],
         problem_id=problem_id,
     )
 
