@@ -2,9 +2,9 @@ from arc_agi.prompts import FEEDBACK_PROMPT, SOLVER_PROMPT_1, SOLVER_PROMPT_2, S
 from arc_agi.types import ExpertConfig
 
 # To run Poetiq 3:
-NUM_EXPERTS = 2
+NUM_EXPERTS = 1
 # To run Poetiq 4:
-# NUM_EXPERTS = 4
+# NUM_EXPERTS = 2
 # To run Poetiq 5:
 # NUM_EXPERTS = 8
 
