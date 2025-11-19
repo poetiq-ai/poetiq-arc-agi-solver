@@ -1,6 +1,6 @@
 from typing import Literal, Optional, TypedDict
 
-Models = Literal["groq/openai/gpt-oss-120b", "openai/gpt-5", "xai/grok-4-fast"]
+Models = Literal["gemini/gemini-3-pro-preview", "groq/openai/gpt-oss-120b", "openai/gpt-5", "xai/grok-4-fast"]
 
 
 class ExpertConfig(TypedDict):
