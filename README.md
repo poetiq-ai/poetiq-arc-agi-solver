@@ -50,7 +50,7 @@ Full analysis is available in our launch post, **[Traversing the Frontier of Sup
 ## 📄 Contact
 If you use this code or these results in your research, please cite our blog post:
 
-Poetiq Team. (2024). *Traversing the Frontier of Superintelligence*. Poetiq AI. [https://poetiq.ai/posts/arcagi_announcement/](https://poetiq.ai/posts/arcagi_announcement/)
+Poetiq Team. (2025). *Traversing the Frontier of Superintelligence*. Poetiq AI. [https://poetiq.ai/posts/arcagi_announcement/](https://poetiq.ai/posts/arcagi_announcement/)
 
 For questions or to discuss the future of reasoning, reach out to us at poetiq@poetiq.ai.
 
