@@ -147,9 +147,9 @@ $score
         return ""
     scores = [x["score"] for x in solutions]
     inds = np.argsort(scores)[::-1]
+    inds = inds[: min(max_examples, len(inds))]
     if improving_order:
         inds = inds[::-1]
-    inds = inds[: min(max_examples, len(inds))]
 
     blocks: list[str] = []
     for k, idx in enumerate(inds, start=1):
