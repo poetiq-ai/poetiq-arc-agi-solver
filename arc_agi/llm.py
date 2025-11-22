@@ -1,9 +1,8 @@
 import asyncio
-import logging
 from typing import Any
 
-from asynciolimiter import Limiter
 import litellm
+from asynciolimiter import Limiter
 from litellm import acompletion
 from litellm import exceptions as litellm_exceptions
 
@@ -16,15 +15,27 @@ RETRIES = 3
 RETRY_DELAY_SEC = 5
 
 limiters: dict[Models, Limiter] = {
-    "groq/openai/gpt-oss-120b": Limiter(0.25),
+    "groq/openai/gpt-oss-120b": Limiter(1.0),
     "openai/gpt-5": Limiter(1.0),
+    "openai/gpt-5.1": Limiter(1.0),
     "xai/grok-4-fast": Limiter(1.0),
+    "xai/grok-4": Limiter(1.0),
+    "anthropic/claude-sonnet-4-5": Limiter(1.0),
+    "anthropic/claude-haiku-4-5": Limiter(1.0),
+    "gemini/gemini-2.5-pro": Limiter(2.0),
+    "gemini/gemini-3-pro-preview": Limiter(1.0),
 }
 
 props: dict[Models, dict] = {
     "groq/openai/gpt-oss-120b": {},
     "openai/gpt-5": {"reasoning_effort": "high"},
+    "openai/gpt-5.1": {"reasoning_effort": "high"},
     "xai/grok-4-fast": {},
+    "xai/grok-4": {},
+    "anthropic/claude-sonnet-4-5": {"thinking": {"type": "enabled", "budget_tokens": 32_000}},
+    "anthropic/claude-haiku-4-5": {"thinking": {"type": "enabled", "budget_tokens": 32_000}},
+    "gemini/gemini-2.5-pro": {"thinking": {"type": "enabled", "budget_tokens": 16_000}},
+    "gemini/gemini-3-pro-preview": {},
 }
 
 
