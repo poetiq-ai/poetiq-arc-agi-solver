@@ -2,11 +2,13 @@ from arc_agi.prompts import FEEDBACK_PROMPT, SOLVER_PROMPT_1, SOLVER_PROMPT_2, S
 from arc_agi.types import ExpertConfig
 
 # To run Poetiq(Gemini-3-a):
-NUM_EXPERTS = 1
+# NUM_EXPERTS = 1
 # To run Poetiq(Gemini-3-b):
 # NUM_EXPERTS = 2
 # To run Poetiq(Gemini-3-c):
 # NUM_EXPERTS = 8
+# To run Poetiq(Gemini-3-d):
+NUM_EXPERTS = 16
 
 CONFIG_LIST: list[ExpertConfig] = [
   {
