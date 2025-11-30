@@ -8,7 +8,7 @@ from arc_agi.types import ExpertConfig
 # To run Poetiq(Gemini-3-c):
 # NUM_EXPERTS = 8
 # To run Poetiq(Gemini-3-d):
-NUM_EXPERTS = 16
+NUM_EXPERTS = 20
 
 CONFIG_LIST: list[ExpertConfig] = [
   {
