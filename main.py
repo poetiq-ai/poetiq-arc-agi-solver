@@ -34,9 +34,9 @@ NUM_PROBLEMS = None
 SELECTED_PROBLEMS = [] # e.g. ['b7999b51']
 
 
-async def _eval_task_data(task_id: str, task: dict) -> tuple[str, Optional[list[dict]], Optional[str], float]:
+async def _eval_task_data(task_id: str, task: dict) -> tuple[str, Optional[list[dict]], Optional[dict], Optional[str], float]:
     """
-    Returns: (task_id, kaggle_preds | None on error, error, elapsed_seconds)
+    Returns: (task_id, kaggle_preds | None on error, tokens | None on error, error, elapsed_seconds)
     """
     start = time.time()
     try:
@@ -49,9 +49,17 @@ async def _eval_task_data(task_id: str, task: dict) -> tuple[str, Optional[list[
         results = await solve(train_in, train_out, test_in, problem_id=task_id)
         kaggle_preds = build_kaggle_two_attempts(results, test_in)
 
-        return task_id, kaggle_preds, None, time.time() - start
+        prompt_tokens = sum(r['prompt_tokens'] or 0 for r in results if r)
+        completion_tokens = sum(r['completion_tokens'] or 0 for r in results if r)
+        tokens = {
+            "prompt": prompt_tokens,
+            "completion": completion_tokens,
+            "total": prompt_tokens + completion_tokens
+        }
+
+        return task_id, kaggle_preds, tokens, None, time.time() - start
     except Exception:
-        return task_id, None, traceback.format_exc(), time.time() - start
+        return task_id, None, None, traceback.format_exc(), time.time() - start
 
 
 async def main():
@@ -95,6 +103,7 @@ async def main():
     start = time.time()
 
     submission: dict[str, list[dict]] = {}
+    tokens_data: dict[str, dict] = {}
 
     # running scores only if solutions available
     per_task_scores: dict[str, float] = {}
@@ -105,13 +114,15 @@ async def main():
     tasks = [asyncio.create_task(_eval_task_data(task_id, task)) for task_id, task in items]
 
     for coro in asyncio.as_completed(tasks):
-        task_id, preds, err, elapsed = await coro
+        task_id, preds, tokens, err, elapsed = await coro
 
         if err is not None or preds is None:
             print(f"! {task_id} (error in {round(elapsed)}s)\n{err}")
             submission[task_id] = []
         else:
             submission[task_id] = preds
+            if tokens:
+                tokens_data[task_id] = tokens
 
             # running scores if solutions available
             if solutions_blob is not None and task_id in solutions_blob:
@@ -130,6 +141,8 @@ async def main():
         try:
             with open(OUTPUT, "w", encoding="utf-8") as f:
                 json.dump(submission, f)
+            with open(os.path.join(OUTPUT_DIR, f"tokens_{TIMESTAMP}.json"), "w", encoding="utf-8") as f:
+                json.dump(tokens_data, f)
         except Exception as e:
             print(f"WARNING: Failed to write partial output to {OUTPUT}: {e}")
 
@@ -152,6 +165,9 @@ async def main():
         with open(OUTPUT, "w", encoding="utf-8") as f:
             json.dump(submission, f)
         print(f"\nWrote Kaggle submission to: {OUTPUT}")
+        with open(os.path.join(OUTPUT_DIR, f"tokens_{TIMESTAMP}.json"), "w", encoding="utf-8") as f:
+            json.dump(tokens_data, f)
+        print(f"Wrote token usage to: {os.path.join(OUTPUT_DIR, f'tokens_{TIMESTAMP}.json')}")
     except Exception as e:
         print(f"ERROR: Final write to {OUTPUT} failed: {e}")
 

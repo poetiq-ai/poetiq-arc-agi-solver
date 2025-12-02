@@ -48,7 +48,7 @@ async def llm(
     max_remaining_timeouts: int | None,
     problem_id: str | None = None,
     retries: int = RETRIES,
-) -> tuple[str, float, float | None, int | None]:
+) -> tuple[str, float, float | None, int | None, int, int]:
     attempt = 1
     while attempt <= retries:
         await limiters[model].wait()
@@ -71,11 +71,17 @@ async def llm(
             duration = end_time - start_time
             if max_remaining_time is not None:
                 max_remaining_time -= duration
+
+            prompt_tokens = resp.model_extra.get("usage").prompt_tokens
+            completion_tokens = resp.model_extra.get("usage").completion_tokens
+
             return (
                 resp["choices"][0]["message"]["content"].strip(),
                 duration,
                 max_remaining_time,
                 max_remaining_timeouts,
+                prompt_tokens,
+                completion_tokens
             )
 
         except (
@@ -113,6 +119,8 @@ async def llm(
                         duration,
                         max_remaining_time,
                         max_remaining_timeouts,
+                        0,
+                        0
                     )
             if max_remaining_time is not None and max_remaining_time <= 0:
                 raise RuntimeError("Exceeded time allotted to the request")
