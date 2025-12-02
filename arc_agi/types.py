@@ -56,6 +56,8 @@ class ARCAGIResult(TypedDict):
     train_results: list[RunResult]
     results: list[RunResult]  # test results
     iteration: int
+    prompt_tokens: Optional[int]
+    completion_tokens: Optional[int]
 
 
 class ARCAGISolution(TypedDict):

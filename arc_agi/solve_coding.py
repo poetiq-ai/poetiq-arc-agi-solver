@@ -35,6 +35,9 @@ async def solve_coding(
     max_total_time = config.get("max_total_time")
     per_iteration_retries = config.get("per_iteration_retries")
 
+    total_prompt_tokens = 0
+    total_completion_tokens = 0
+
     best_train_score = -1.0
     best_result: Optional[ARCAGIResult] = None
     last_train: list[RunResult] = [
@@ -68,7 +71,7 @@ async def solve_coding(
             message += "\n\n" + _build_prompt(feedback_prompt, feedback=examples_block)
 
         try:
-            response, duration, max_total_time, max_total_timeouts = await llm(
+            response, duration, max_total_time, max_total_timeouts, prompt_tokens, completion_tokens = await llm(
                 llm_model,
                 message=message,
                 temperature=solver_temperature,
@@ -78,6 +81,8 @@ async def solve_coding(
                 problem_id=problem_id,
                 retries=per_iteration_retries,
             )
+            total_prompt_tokens += prompt_tokens
+            total_completion_tokens += completion_tokens
         except Exception as e:
             if "Exceeded timeouts allotted to the request" in str(e) or "Exceeded time allotted to the request" in str(e):
                 # Exceeded max_remaining_timeouts or max_remaining_time
@@ -98,7 +103,11 @@ async def solve_coding(
 
         if all(r["success"] for r in train_res):
             return ARCAGIResult(
-                train_results=train_res, results=test_res, iteration=it + 1
+                train_results=train_res,
+                results=test_res,
+                iteration=it + 1,
+                prompt_tokens=total_prompt_tokens,
+                completion_tokens=total_completion_tokens,
             )
 
         feedback, score = _build_feedback(train_res, train_in, train_out)
@@ -107,10 +116,16 @@ async def solve_coding(
         if score >= best_train_score:
             best_train_score = score
             best_result = ARCAGIResult(
-                train_results=train_res, results=test_res, iteration=it + 1
+                train_results=train_res,
+                results=test_res,
+                iteration=it + 1,
+                prompt_tokens=None,
+                completion_tokens=None,
             )
 
     if return_best and best_result is not None:
+        best_result['prompt_tokens'] = total_prompt_tokens
+        best_result['completion_tokens'] = total_completion_tokens
         return best_result
     if last_test is None:
         last_test = [
@@ -123,7 +138,11 @@ async def solve_coding(
             )
         ]
     return ARCAGIResult(
-        train_results=last_train, results=last_test, iteration=max_iterations
+        train_results=last_train,
+        results=last_test,
+        iteration=max_iterations,
+        prompt_tokens=total_prompt_tokens,
+        completion_tokens=total_completion_tokens,
     )
 
 
