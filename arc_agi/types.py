@@ -10,7 +10,8 @@ Models = Literal[
     "anthropic/claude-haiku-4-5",
     "gemini/gemini-2.5-pro",
     "gemini/gemini-3-pro-preview",
-    "anthropic/claude-opus-4-5"
+    "anthropic/claude-opus-4-5",
+    "vertex_ai/gemini-3-pro-preview",
 ]
 
 

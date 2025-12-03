@@ -1,4 +1,5 @@
 import asyncio
+import os
 from typing import Any
 
 import litellm
@@ -25,6 +26,7 @@ limiters: dict[Models, Limiter] = {
     "gemini/gemini-2.5-pro": Limiter(2.0),
     "gemini/gemini-3-pro-preview": Limiter(1.0),
     "anthropic/claude-opus-4-5": Limiter(.25),
+    "vertex_ai/gemini-3-pro-preview": Limiter(1.0),
 }
 
 props: dict[Models, dict] = {
@@ -38,6 +40,7 @@ props: dict[Models, dict] = {
     "gemini/gemini-2.5-pro": {"thinking": {"type": "enabled", "budget_tokens": 16_000}},
     "gemini/gemini-3-pro-preview": {},
     "anthropic/claude-opus-4-5": {"thinking": {"type": "enabled", "budget_tokens": 32_000}},
+    "vertex_ai/gemini-3-pro-preview": { "vertex_credentials": os.getenv('VERTEX_AI_KEY'), "vertex_location": "global" },
 }
 
 

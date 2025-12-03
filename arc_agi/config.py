@@ -16,7 +16,7 @@ CONFIG_LIST: list[ExpertConfig] = [
     'solver_prompt': SOLVER_PROMPT_1,
     'feedback_prompt': FEEDBACK_PROMPT,
     # LLM parameters
-    'llm_id': 'anthropic/claude-opus-4-5',
+    'llm_id': "vertex_ai/gemini-3-pro-preview",
     'solver_temperature': 1.0,
     'request_timeout': 60 * 60, # in seconds
     'max_total_timeouts': 15, # per problem per solver
