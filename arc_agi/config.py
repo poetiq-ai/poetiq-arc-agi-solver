@@ -1,4 +1,4 @@
-from arc_agi.prompts import FEEDBACK_PROMPT, SOLVER_PROMPT_1, SOLVER_PROMPT_2, SOLVER_PROMPT_3
+from arc_agi.prompts import FEEDBACK_PROMPT, SOLVER_PROMPT_1
 from arc_agi.types import ExpertConfig
 
 # To run Poetiq(Gemini-3-a):
@@ -16,7 +16,7 @@ CONFIG_LIST: list[ExpertConfig] = [
     'solver_prompt': SOLVER_PROMPT_1,
     'feedback_prompt': FEEDBACK_PROMPT,
     # LLM parameters
-    'llm_id': 'gemini/gemini-3-pro-preview',
+    'llm_id': 'anthropic/claude-opus-4-5',
     'solver_temperature': 1.0,
     'request_timeout': 60 * 60, # in seconds
     'max_total_timeouts': 15, # per problem per solver

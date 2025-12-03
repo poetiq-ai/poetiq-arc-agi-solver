@@ -24,6 +24,7 @@ limiters: dict[Models, Limiter] = {
     "anthropic/claude-haiku-4-5": Limiter(1.0),
     "gemini/gemini-2.5-pro": Limiter(2.0),
     "gemini/gemini-3-pro-preview": Limiter(1.0),
+    "anthropic/claude-opus-4-5": Limiter(.25),
 }
 
 props: dict[Models, dict] = {
@@ -36,6 +37,7 @@ props: dict[Models, dict] = {
     "anthropic/claude-haiku-4-5": {"thinking": {"type": "enabled", "budget_tokens": 32_000}},
     "gemini/gemini-2.5-pro": {"thinking": {"type": "enabled", "budget_tokens": 16_000}},
     "gemini/gemini-3-pro-preview": {},
+    "anthropic/claude-opus-4-5": {"thinking": {"type": "enabled", "budget_tokens": 32_000}},
 }
 
 
