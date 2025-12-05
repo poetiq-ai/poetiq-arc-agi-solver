@@ -8,13 +8,26 @@ This repository allows reproduction of **Poetiq's** record-breaking submission t
 
 Full analysis is available in our launch post, **[Traversing the Frontier of Superintelligence](https://poetiq.ai/posts/arcagi_announcement/)**.
 
+Our method is now on top of the official leaderboard. More information is in our follow-up post, **[Poetiq Shatters ARC-AGI-2 State of the Art at Half the Cost](https://poetiq.ai/posts/arcagi_verified/)**.
+
 ---
 
-## 📊 Results
+## 📊 Public Eval Results
+You can recreate the Gemini 3 points from these charts using this repo.
 
 <p align="center">
   <img src="arcagi1.png" width="45%" />
   <img src="arcagi2.png" width="45%" />
+</p>
+
+## 📊 Official Private Eval Results
+These are our results on the official leaderboard from ARC Prize, but those problems are kept private.
+
+<p align="center">
+  <img src="officialtable_boxed.png" width="755%" />
+</p>
+<p align="center">
+  <img src="arc2captured.png" width="60%" />
 </p>
 
 ## 🛠️ Usage
