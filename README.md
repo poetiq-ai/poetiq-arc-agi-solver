@@ -13,7 +13,7 @@ Our method is now on top of the official leaderboard. More information is in our
 ---
 
 ## 📊 Public Eval Results
-You can recreate points from these charts using this repo.
+You can recreate the Gemini 3 points from these charts using this repo.
 
 <p align="center">
   <img src="arcagi1.png" width="45%" />
