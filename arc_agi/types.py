@@ -10,6 +10,7 @@ Models = Literal[
     "anthropic/claude-haiku-4-5",
     "gemini/gemini-2.5-pro",
     "gemini/gemini-3-pro-preview",
+    "gpt-5.1",
 ]
 
 
