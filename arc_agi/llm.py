@@ -94,8 +94,8 @@ async def llm(
                         status = resp_json["status"]
 
                         while status in {"queued", "in_progress"}:
-                            await asyncio.sleep(30)
                             poll_start = asyncio.get_event_loop().time()
+                            await asyncio.sleep(30)
 
                             try:
                                 poll_resp = await client.get(
@@ -107,16 +107,16 @@ async def llm(
                             except Exception as e:
                                 print('Polling failed', str(e), 'retrying.')
                                 continue
-                            
+
                             resp_json = poll_resp.json()
                             status = resp_json["status"]
 
                             poll_end = asyncio.get_event_loop().time()
                             duration = poll_end - poll_start
-                            if max_remaining_time is not None:
-                                max_remaining_time -= duration
-                                if max_remaining_time <= 0:
-                                    raise RuntimeError("Exceeded Timeout allotted to the request") # catch as a timeout instead of nothing
+
+                            current_request_timeout -= duration
+                            if current_request_timeout <= 0:
+                                raise RuntimeError("Exceeded Timeout allotted to the request")
 
                 end_time = asyncio.get_event_loop().time()
                 duration = end_time - start_time
@@ -125,7 +125,7 @@ async def llm(
 
                 if not resp_json:
                     raise litellm_exceptions.InternalServerError("Empty response from server", model.split("/")[0], model.split("/")[-1])
-                
+
                 prompt_tokens = resp_json["usage"]["input_tokens"]
                 completion_tokens = resp_json["usage"]["output_tokens"]
 
@@ -220,7 +220,6 @@ async def llm(
             attempt += 1
 
     raise RuntimeError("Retries exceeded")
-
 
 def extract_text_from_response(resp_json: dict) -> str:
     """
