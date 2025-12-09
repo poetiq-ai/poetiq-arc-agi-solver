@@ -38,11 +38,11 @@ These are our results on the official leaderboard from ARC Prize, but those prob
 
 ### Quick Start
 
-1. Setup the environment:
+1. Set up the environment with `uv` (installs dependencies into `.venv`):
    ```bash
-   python -m venv .venv
-   source .venv/bin/activate
-   pip install -r requirements.txt
+   uv venv
+   source .venv/bin/activate   # or .venv\Scripts\activate on Windows
+   uv sync
    ```
 
 2. Create a .env file in the root directory. You must include keys for the models you intend to run.
@@ -55,7 +55,7 @@ These are our results on the official leaderboard from ARC Prize, but those prob
 3. Modify the constants in main.py to set the problem set, number of problems, etc. Then run the script:
 
     ```bash
-    python main.py
+    uv run python main.py
     ```
 
 4. By default, the code runs the Poetiq 3 config described in the blog post. You can uncomment other ones or modify the config in config.py
