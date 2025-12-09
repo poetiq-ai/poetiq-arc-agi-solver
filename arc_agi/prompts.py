@@ -43,7 +43,7 @@ Here's how to approach the problem:
 **Input:**
 ```
 [[1, 1, 1],
-[1, 0, 1],
+[1, 1, 1],
 [1, 1, 1]]
 ```
 
