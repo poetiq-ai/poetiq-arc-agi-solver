@@ -1,5 +1,6 @@
 import asyncio
 import os
+import time
 from typing import Any
 
 import httpx
@@ -50,20 +51,25 @@ async def llm(
     message: str,
     temperature,
     request_timeout: int | None,
-    max_remaining_time: float | None,
+    deadline: float | None,
     max_remaining_timeouts: int | None,
     problem_id: str | None = None,
     retries: int = RETRIES,
-) -> tuple[str, float, float | None, int | None, int, int]:
+) -> tuple[str, int | None, int, int]:
     attempt = 1
     while attempt <= retries:
+        if deadline and time.time() > deadline:
+            raise RuntimeError("Exceeded time allotted to the request")
+
         await limiters[model].wait()
 
         current_request_timeout = request_timeout or 15 * 60
-        if max_remaining_time is not None:
-            current_request_timeout = min(current_request_timeout, max_remaining_time)
+        if deadline is not None:
+            current_request_timeout = min(current_request_timeout, deadline - time.time())
 
-        start_time = asyncio.get_event_loop().time()
+        if current_request_timeout <= 0:
+            raise RuntimeError("Exceeded time allotted to the request")
+
         try:
             if model in DIRECT_OPENAI_MODELS:
                 headers = {
@@ -94,14 +100,16 @@ async def llm(
                         status = resp_json["status"]
 
                         while status in {"queued", "in_progress"}:
-                            poll_start = asyncio.get_event_loop().time()
+                            if deadline and time.time() > deadline:
+                                raise RuntimeError("Exceeded time allotted to the request")
+
                             await asyncio.sleep(30)
 
                             try:
                                 poll_resp = await client.get(
                                     f"https://api.openai.com/v1/responses/{resp_id}",
                                     headers=headers,
-                                    timeout=min(60, current_request_timeout),
+                                    timeout=min(60, deadline - time.time() if deadline else 60),
                                 )
                                 poll_resp.raise_for_status()
                             except Exception as e:
@@ -110,18 +118,6 @@ async def llm(
 
                             resp_json = poll_resp.json()
                             status = resp_json["status"]
-
-                            poll_end = asyncio.get_event_loop().time()
-                            duration = poll_end - poll_start
-
-                            current_request_timeout -= duration
-                            if current_request_timeout <= 0:
-                                raise RuntimeError("Exceeded Timeout allotted to the request")
-
-                end_time = asyncio.get_event_loop().time()
-                duration = end_time - start_time
-                if max_remaining_time is not None:
-                    max_remaining_time -= duration
 
                 if not resp_json:
                     raise litellm_exceptions.InternalServerError("Empty response from server", model.split("/")[0], model.split("/")[-1])
@@ -133,8 +129,6 @@ async def llm(
 
                 return (
                     text,
-                    duration,
-                    max_remaining_time,
                     max_remaining_timeouts,
                     prompt_tokens,
                     completion_tokens,
@@ -148,18 +142,12 @@ async def llm(
                 num_retries=0,
                 **props[model],
             )
-            end_time = asyncio.get_event_loop().time()
-            duration = end_time - start_time
-            if max_remaining_time is not None:
-                max_remaining_time -= duration
 
             prompt_tokens = resp.model_extra.get("usage").prompt_tokens
             completion_tokens = resp.model_extra.get("usage").completion_tokens
 
             return (
                 resp["choices"][0]["message"]["content"].strip(),
-                duration,
-                max_remaining_time,
                 max_remaining_timeouts,
                 prompt_tokens,
                 completion_tokens,
@@ -181,11 +169,6 @@ async def llm(
             continue
 
         except Exception as e:
-            end_time = asyncio.get_event_loop().time()
-            duration = end_time - start_time
-            if max_remaining_time is not None:
-                max_remaining_time -= duration
-
             if "Timeout" in str(e) or isinstance(e, httpx.TimeoutException):
                 if max_remaining_timeouts is not None:
                     max_remaining_timeouts -= 1
@@ -198,13 +181,11 @@ async def llm(
                 if attempt == retries:
                     return (
                         "Timeout",
-                        duration,
-                        max_remaining_time,
                         max_remaining_timeouts,
                         0,
                         0,
                     )
-            if max_remaining_time is not None and max_remaining_time <= 0:
+            if deadline and time.time() > deadline:
                 raise RuntimeError("Exceeded time allotted to the request")
 
             if attempt == retries:

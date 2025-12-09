@@ -1,6 +1,7 @@
 import json
 import re
 import string
+import time
 from typing import Any, Optional
 
 import numpy as np
@@ -35,6 +36,7 @@ async def solve_coding(
     max_total_time = config.get("max_total_time")
     per_iteration_retries = config.get("per_iteration_retries")
 
+    deadline = time.time() + max_total_time if max_total_time else None
     total_prompt_tokens = 0
     total_completion_tokens = 0
 
@@ -55,6 +57,9 @@ async def solve_coding(
     solutions: list[ARCAGISolution] = []
 
     for it in range(max_iterations):
+        if deadline and time.time() > deadline:
+            print("Exiting early due to exceeding allotted time on problem", problem_id)
+            break
         example = _make_example(train_in, train_out, test_in)
         problem_str = format_problem(example, shuffle_examples, seed + it)
         message = _build_prompt(solver_prompt, problem=problem_str)
@@ -71,12 +76,12 @@ async def solve_coding(
             message += "\n\n" + _build_prompt(feedback_prompt, feedback=examples_block)
 
         try:
-            response, duration, max_total_time, max_total_timeouts, prompt_tokens, completion_tokens = await llm(
+            response, max_total_timeouts, prompt_tokens, completion_tokens = await llm(
                 llm_model,
                 message=message,
                 temperature=solver_temperature,
                 request_timeout=request_timeout,
-                max_remaining_time=max_total_time,
+                deadline=deadline,
                 max_remaining_timeouts=max_total_timeouts,
                 problem_id=problem_id,
                 retries=per_iteration_retries,
@@ -126,6 +131,7 @@ async def solve_coding(
     if return_best and best_result is not None:
         best_result['prompt_tokens'] = total_prompt_tokens
         best_result['completion_tokens'] = total_completion_tokens
+        best_result['iteration'] = max_iterations
         return best_result
     if last_test is None:
         last_test = [
