@@ -50,13 +50,15 @@ async def run(
 
 def _build_script(code: str) -> str:
     return f"""
+import json
+import numpy as np
+import scipy
+from sys import stdin
+
 # generated file
 {code}
+
 if __name__ == '__main__':
-    import json
-    import numpy as np
-    import scipy
-    from sys import stdin
     data = json.load(stdin)
     res = transform(np.array(data['input']))
     print(json.dumps({{"ok": True, 'result': res.tolist()}}))
