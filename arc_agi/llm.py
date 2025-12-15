@@ -16,8 +16,9 @@ litellm.suppress_debug_info = True
 
 RETRIES = 3
 RETRY_DELAY_SEC = 5
+POLLING_CONNECTION_TIMEOUT = 30 * 60
 
-DIRECT_OPENAI_MODELS = {"gpt-5.1"}
+DIRECT_OPENAI_MODELS = {"gpt-5.1", "gpt-5.2"}
 
 limiters: dict[Models, Limiter] = {
     "groq/openai/gpt-oss-120b": Limiter(1.0),
@@ -30,6 +31,7 @@ limiters: dict[Models, Limiter] = {
     "gemini/gemini-2.5-pro": Limiter(2.0),
     "gemini/gemini-3-pro-preview": Limiter(1.0),
     "gpt-5.1": Limiter(1.0),
+    "gpt-5.2": Limiter(1.0),
 }
 
 props: dict[Models, dict] = {
@@ -43,6 +45,7 @@ props: dict[Models, dict] = {
     "gemini/gemini-2.5-pro": {"thinking": {"type": "enabled", "budget_tokens": 16_000}},
     "gemini/gemini-3-pro-preview": {},
     "gpt-5.1": {"reasoning": {"effort": "high"}},
+    "gpt-5.2": {"reasoning": {"effort": "xhigh"}},
 }
 
 
@@ -57,6 +60,8 @@ async def llm(
     retries: int = RETRIES,
 ) -> tuple[str, int | None, int, int]:
     attempt = 1
+    resp_id_saved = None
+
     while attempt <= retries:
         if deadline and time.time() > deadline:
             raise RuntimeError("Exceeded time allotted to the request")
@@ -97,11 +102,17 @@ async def llm(
 
                     if use_background:
                         resp_id = resp_json["id"]
+                        resp_id_saved = resp_id
                         status = resp_json["status"]
+
+                        last_successful_poll = time.time()
 
                         while status in {"queued", "in_progress"}:
                             if deadline and time.time() > deadline:
                                 raise RuntimeError("Exceeded time allotted to the request")
+
+                            if (time.time() - last_successful_poll > POLLING_CONNECTION_TIMEOUT):
+                                raise RuntimeError(f"Background polling connection failed for > {POLLING_CONNECTION_TIMEOUT}s")
 
                             await asyncio.sleep(30)
 
@@ -112,6 +123,7 @@ async def llm(
                                     timeout=min(60, deadline - time.time() if deadline else 60),
                                 )
                                 poll_resp.raise_for_status()
+                                last_successful_poll = time.time()
                             except Exception as e:
                                 print('Polling failed', str(e), 'retrying.')
                                 continue
@@ -195,6 +207,11 @@ async def llm(
 
             print(str(e))
             print(f"Exception during request for problem: {problem_id or ''}. Retry number {attempt}.")
+
+            if "NoneType" in str(e) or isinstance(e, TypeError):
+                print(f"{problem_id} nonetype sleeping", resp_id_saved if resp_id_saved is not None else "")
+                await asyncio.sleep(5 * 60)
+
             await asyncio.sleep(RETRY_DELAY_SEC)
 
             # Increment attempt at the end of the loop.

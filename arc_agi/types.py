@@ -11,6 +11,7 @@ Models = Literal[
     "gemini/gemini-2.5-pro",
     "gemini/gemini-3-pro-preview",
     "gpt-5.1",
+    "gpt-5.2",
 ]
 
 

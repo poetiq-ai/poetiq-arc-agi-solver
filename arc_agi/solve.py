@@ -8,6 +8,7 @@ async def solve(
     train_out: list[list[list[int]]],
     test_in: list[list[list[int]]],
     problem_id: str | None = None,
+    logging_dir: str | None = None,
 ) -> list[ARCAGIResult]:
     result = await solve_parallel_coding(
         train_in=train_in,
@@ -15,6 +16,7 @@ async def solve(
         test_in=test_in,
         expert_configs=[cfg.copy() for cfg in CONFIG_LIST],
         problem_id=problem_id,
+        logging_dir=logging_dir,
     )
 
     return result

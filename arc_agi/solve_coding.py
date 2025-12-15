@@ -1,4 +1,5 @@
 import json
+import os
 import re
 import string
 import time
@@ -11,6 +12,20 @@ from arc_agi.sandbox import run
 from arc_agi.types import ARCAGIResult, ARCAGISolution, ExpertConfig, RunResult
 
 
+def _save_partial_result(directory: str | None, task_id: str | None, expert_index: int, result: ARCAGIResult):
+    if not directory or not task_id:
+        return
+    filename = f"{task_id}_expert_{expert_index}.json"
+    path = os.path.join(directory, filename)
+    try:
+        # Create a temp file then rename to ensure atomic write (prevents reading half-written files)
+        temp_path = path + ".tmp"
+        with open(temp_path, "w", encoding="utf-8") as f:
+            json.dump(result, f, indent=2)
+        os.replace(temp_path, path)
+    except Exception as e:
+        print(f"Failed to write partial result for {task_id}: {e}")
+
 async def solve_coding(
     *,
     train_in: list[list[list[int]]],
@@ -18,6 +33,8 @@ async def solve_coding(
     test_in: list[list[list[int]]],
     config: ExpertConfig,
     problem_id: str | None = None,
+    expert_index: int = 0,
+    logging_dir: str | None = None,
 ) -> ARCAGIResult:
     solver_prompt = config["solver_prompt"]
     feedback_prompt = config["feedback_prompt"]
@@ -106,50 +123,53 @@ async def solve_coding(
 
         last_train, last_test = train_res, test_res
 
+        current_result_obj = ARCAGIResult(
+            train_results=train_res,
+            results=test_res,
+            iteration=it + 1,
+            prompt_tokens=total_prompt_tokens,
+            completion_tokens=total_completion_tokens,
+        )
+
         if all(r["success"] for r in train_res):
-            return ARCAGIResult(
-                train_results=train_res,
-                results=test_res,
-                iteration=it + 1,
-                prompt_tokens=total_prompt_tokens,
-                completion_tokens=total_completion_tokens,
-            )
+            _save_partial_result(logging_dir, problem_id, expert_index, current_result_obj)
+            return current_result_obj
 
         feedback, score = _build_feedback(train_res, train_in, train_out)
         solutions.append(ARCAGISolution(code=code, feedback=feedback, score=score))
 
         if score >= best_train_score:
             best_train_score = score
-            best_result = ARCAGIResult(
-                train_results=train_res,
-                results=test_res,
-                iteration=it + 1,
-                prompt_tokens=None,
-                completion_tokens=None,
-            )
+            best_result = current_result_obj
+            _save_partial_result(logging_dir, problem_id, expert_index, best_result)
 
+    final_result = None
     if return_best and best_result is not None:
         best_result['prompt_tokens'] = total_prompt_tokens
         best_result['completion_tokens'] = total_completion_tokens
         best_result['iteration'] = max_iterations
-        return best_result
-    if last_test is None:
-        last_test = [
-            RunResult(
-                success=False,
-                output="",
-                soft_score=0.0,
-                error="Failed to generate any valid solutions.",
-                code="",
-            )
-        ]
-    return ARCAGIResult(
-        train_results=last_train,
-        results=last_test,
-        iteration=max_iterations,
-        prompt_tokens=total_prompt_tokens,
-        completion_tokens=total_completion_tokens,
-    )
+        final_result = best_result
+    else:
+        if last_test is None:
+            last_test = [
+                RunResult(
+                    success=False,
+                    output="",
+                    soft_score=0.0,
+                    error="Failed to generate any valid solutions.",
+                    code="",
+                )
+            ]
+        final_result = ARCAGIResult(
+            train_results=last_train,
+            results=last_test,
+            iteration=max_iterations,
+            prompt_tokens=total_prompt_tokens,
+            completion_tokens=total_completion_tokens,
+        )
+    
+    _save_partial_result(logging_dir, problem_id, expert_index, final_result)
+    return final_result
 
 
 def create_examples(solutions, max_examples=3, improving_order: bool = False):
