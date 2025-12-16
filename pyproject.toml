@@ -1,0 +1,24 @@
+[build-system]
+requires = ["setuptools>=69", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "poetiq-arc-agi-solver"
+version = "0.1.0"
+description = "Reproduction of Poetiq ARC-AGI benchmark results"
+readme = "README.md"
+requires-python = ">=3.11,<3.12"
+license = "MIT"
+dependencies = [
+  "asynciolimiter==1.2.0",
+  "litellm==1.78.2",
+  "numpy==2.3.4",
+  "python-dotenv==1.1.1",
+  "scipy==1.16.3",
+]
+
+[tool.setuptools]
+packages = { find = { include = ["arc_agi"], exclude = ["data"] } }
+
+[tool.uv]
+package = true
